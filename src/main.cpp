@@ -9,10 +9,12 @@ struct EthArpPacket final {
 };
 #pragma pack(pop)
 
+
 void usage() {
 	printf("syntax: send-arp-test <interface> [<sender IP> <target IP> <sender IP> <target IP> ...]\n");
 	printf("sample: send-arp-test wlan0 192.168.1.1 192.168.1.3 192.168.1.2 192.168.1.3\n");
 }
+
 
 void getMAC(char *iface, unsigned char *mac) { //MAC주소 받아오기 출처 : chatGPT
         int fd;
@@ -26,13 +28,13 @@ void getMAC(char *iface, unsigned char *mac) { //MAC주소 받아오기 출처 :
 }
 
 int main(int argc, char* argv[]) {
-	if (argc < 3 || argc%2==1) {
+	if (argc < 3 || argc % 2 == 1) {
 		usage();
 		return -1;
 	}
 	char victim_mac[18];
 	unsigned char mac[6];
-    char macStr[18];
+    	char macStr[18];
 	char* iface = argv[1];
 	int fd = socket(AF_INET, SOCK_DGRAM, 0);
 	struct ifreq ifr;
