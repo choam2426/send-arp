@@ -1,8 +1,6 @@
 #include <cstdio>
 #include <pcap.h>
 #include <cstring>
-#include "ethhdr.h"
-#include "arphdr.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
